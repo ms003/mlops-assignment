@@ -1,0 +1,19 @@
+{
+  "phase": "phase6",
+  "name": "tuned_vllm_4096_seq16_prefix_cache",
+  "model": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+  "flags": {
+    "max_model_len": 4096,
+    "max_num_seqs": 16,
+    "max_num_batched_tokens": 8192,
+    "gpu_memory_utilization": 0.9,
+    "enable_prefix_caching": true
+  },
+  "rationale": {
+    "max_model_len": "Reduce KV-cache pressure for short text-to-SQL prompts.",
+    "max_num_seqs": "Conservative concurrency cap to reduce tail latency and timeouts under overload.",
+    "max_num_batched_tokens": "Bound per-step batch size to control latency while preserving batching.",
+    "gpu_memory_utilization": "Use most H100 memory while leaving operational headroom.",
+    "enable_prefix_caching": "Reuse repeated prompt/schema prefixes to reduce prefill cost."
+  }
+}

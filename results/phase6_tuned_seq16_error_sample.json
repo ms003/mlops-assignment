@@ -1,0 +1,13 @@
+{
+  "phase": "phase6",
+  "config": "tuned_vllm_4096_seq16_prefix_cache",
+  "error_type": "context_length_exceeded",
+  "sample": {
+    "db_id": "student_club",
+    "question": "Write the full name of the club member with the position of 'Secretary' and list which college the club member belongs to.",
+    "http_status": 500,
+    "upstream_status": 400,
+    "detail": "This model's maximum context length is 4096 tokens. However, your request has 4277 input tokens."
+  },
+  "interpretation": "Lowering max_model_len to 4096 reduces latency for successful requests but rejects some schema prompts from the load-test pool."
+}

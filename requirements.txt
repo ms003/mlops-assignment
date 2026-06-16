@@ -1,0 +1,22 @@
+# Serving / inference
+# Current tested environment: vLLM 0.10.2 on Python 3.12 + CUDA/H100.
+vllm>=0.10.2,<0.11
+transformers>=4.57,<5
+
+# Agent
+langgraph>=1.2,<2.0
+langchain>=1.3,<2.0
+langchain-openai>=1.2,<2.0
+langfuse>=4.7,<5.0
+
+# Server wrapper
+fastapi>=0.136,<1.0
+uvicorn[standard]>=0.48,<1.0
+pydantic>=2.13,<3.0
+
+# Data + utilities
+datasets>=4.8,<5.0
+python-dotenv>=1.2,<2.0
+httpx>=0.28,<1.0
+aiohttp>=3.14,<4.0
+tqdm>=4.67,<5.0

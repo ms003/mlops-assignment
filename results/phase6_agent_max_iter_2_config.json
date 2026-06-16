@@ -1,0 +1,9 @@
+{
+  "phase": "phase6",
+  "name": "agent_max_iterations_2",
+  "change": {
+    "MAX_ITERATIONS": 2
+  },
+  "rationale": "Phase 5 per-iteration eval improved from iteration 1 to 2, but iteration 3 gave no additional accuracy; cap at 2 removes a wasted revise attempt under load.",
+  "expected_effect": "Reduce worst-case LLM calls per agent request while preserving observed eval accuracy from iteration 2."
+}

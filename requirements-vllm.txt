@@ -1,0 +1,4 @@
+# Minimal serving-only install for the tested vLLM setup.
+# Current tested environment: vLLM 0.10.2 on Python 3.12 + CUDA/H100.
+vllm>=0.10.2,<0.11
+transformers>=4.57,<5

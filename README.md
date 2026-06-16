@@ -381,6 +381,23 @@ Watch the Grafana dashboard while it runs.
 - `results/eval_after_tuning.json` showing whether quality survived
 - An honest verdict - SLO hit, or SLO missed with the gap quantified
 
+
+### Phase 6 Run Notes
+
+The Phase 6 target is **P95 end-to-end agent latency < 5s at 10+ full agent runs/sec for 5 minutes**. The runs below were executed at 5 requested RPS, so none can satisfy the full 10+ RPS pass criterion. They are useful diagnosis iterations showing which bottleneck moved and what broke next.
+
+| Run | Config/change | Requested RPS | Achieved RPS | OK / total | P95 latency | Errors | Pass criteria result |
+|---|---|---:|---:|---:|---:|---:|---|
+| Original baseline | `--max-model-len 8192` | 5.0 | 4.17 | 250/1500 | 102.3s | timeouts=949, http=1, client=300 | **Fail**: below 10 RPS, P95 far above 5s, many timeouts |
+| First fix | `--max-model-len 4096`, `--max-num-seqs 16`, `--max-num-batched-tokens 8192`, prefix caching | 5.0 | 4.63 | 317/1500 | 8.1s | timeouts=2, http=1174, client=7 | **Fail**: latency improved for successful requests, but HTTP 500s dominate |
+| Second fix | First fix + `MAX_ITERATIONS = 2` | 5.0 | 4.63 | 315/1500 | 7.0s | timeouts=2, http=1159, client=24 | **Fail**: P95 closer but still >5s, 4096-token context still breaks many requests |
+
+Diagnosis from the first fix: reducing the vLLM context window, limiting sequence concurrency, bounding batched tokens, and enabling prefix caching moved successful-request latency in the right direction. P95 improved from 102.3s to 8.1s and timeouts dropped from 949 to 2. However, this exposed a new failure mode: `--max-model-len 4096` is too small for the current schema-heavy prompts. vLLM rejects prompts over the context limit with a 400 error, which the agent surfaces as HTTP 500. A sampled failure had 4277 input tokens against the 4096-token limit.
+
+Result from the second fix: reducing `MAX_ITERATIONS` from 3 to 2 lowered wasted LLM calls and improved successful-request latency again, from 8.1s P95 to 7.0s P95. This is consistent with the Phase 5 eval, where iteration 3 gave no additional accuracy. But it did not fix the dominant reliability problem because the 4096-token context limit remained. The post-tuning eval in `results/eval_after_tuning.json` confirmed quality did not survive: final accuracy was 6.7%, with 25 agent HTTP errors out of 30 questions.
+
+Practical conclusion: keep the agent-call reduction (`MAX_ITERATIONS = 2`) because it reduces decode demand without observed iteration-3 quality benefit, but do not keep `--max-model-len 4096` unless schema prompts are reduced. The next viable configuration should restore enough context, likely 8192, while preserving prefix caching and conservative concurrency; otherwise implement selective schema rendering before using 4096.
+
 ---
 
 ## Phase 7 (Docs)
