@@ -1,0 +1,46 @@
+{
+  "phase": "phase6",
+  "baseline_file": "results/load_test.json",
+  "after_file": "results/load_test_after_tuned_seq16.json",
+  "config_file": "results/phase6_tuned_vllm_config.json",
+  "startup_file": "results/phase6_tuned_vllm_startup.json",
+  "error_sample_file": "results/phase6_tuned_seq16_error_sample.json",
+  "baseline": {
+    "requested_rps": 5.0,
+    "duration_seconds": 300,
+    "wall_clock_seconds": 360.00225391300046,
+    "total_requests": 1500,
+    "achieved_rps": 4.1666405798739685,
+    "ok": 250,
+    "timeouts": 949,
+    "http_errors": 1,
+    "client_errors": 300,
+    "latency_p50": 14.375975283001026,
+    "latency_p95": 102.31600870699913,
+    "latency_p99": 114.0886201329995,
+    "latency_max": 118.58108502400137
+  },
+  "after": {
+    "requested_rps": 5.0,
+    "duration_seconds": 300,
+    "wall_clock_seconds": 323.8360471320011,
+    "total_requests": 1500,
+    "achieved_rps": 4.631973535017163,
+    "ok": 317,
+    "timeouts": 2,
+    "http_errors": 1174,
+    "client_errors": 7,
+    "latency_p50": 1.2283672529993055,
+    "latency_p95": 8.144420665001235,
+    "latency_p99": 13.447088752996933,
+    "latency_max": 28.984161913002026
+  },
+  "summary": {
+    "latency_p95_change_seconds": -94.1715880419979,
+    "latency_p50_change_seconds": -13.14760803000172,
+    "timeouts_change": -947,
+    "http_errors_change": 1173,
+    "ok_change": 67,
+    "verdict": "Latency improved for successful requests, but 4096 context is not viable because HTTP 500s increased from context-length failures."
+  }
+}

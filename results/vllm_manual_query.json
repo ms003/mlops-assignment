@@ -1,0 +1,38 @@
+{
+  "url": "http://localhost:8000/v1/chat/completions",
+  "model": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+  "db_id": "formula_1",
+  "question": "What is the coordinates location of the circuits for Australian grand prix?",
+  "sql": "SELECT c.lat, c.lng\nFROM circuits c\nJOIN races r ON c.circuitId = r.circuitId\nWHERE r.name = 'Australian Grand Prix';",
+  "elapsed_seconds": 0.34420227500049805,
+  "model_response": {
+    "object": "list",
+    "data": [
+      {
+        "id": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+        "object": "model",
+        "created": 1781624632,
+        "owned_by": "vllm",
+        "root": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+        "parent": null,
+        "max_model_len": 8192,
+        "permission": [
+          {
+            "id": "modelperm-bd86ceaa43654982b0b32073afffe4ea",
+            "object": "model_permission",
+            "created": 1781624632,
+            "allow_create_engine": false,
+            "allow_sampling": true,
+            "allow_logprobs": true,
+            "allow_search_indices": false,
+            "allow_view": true,
+            "allow_fine_tuning": false,
+            "organization": "*",
+            "group": null,
+            "is_blocking": false
+          }
+        ]
+      }
+    ]
+  }
+}

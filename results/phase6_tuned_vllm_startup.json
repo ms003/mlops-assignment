@@ -1,0 +1,19 @@
+{
+  "phase": "phase6",
+  "name": "tuned_vllm_4096_seq16_prefix_cache_startup",
+  "startup_observed": {
+    "max_model_len": 4096,
+    "max_num_seqs": 16,
+    "max_num_batched_tokens": 8192,
+    "enable_prefix_caching": true,
+    "chunked_prefill_enabled": true,
+    "model_loading_gib": 56.9342,
+    "available_kv_cache_gib": 13.72,
+    "gpu_kv_cache_tokens": 149904,
+    "max_concurrency_for_4096_tokens": 36.6
+  },
+  "notes": [
+    "Observed from vLLM startup logs on 2026-06-16.",
+    "vLLM is running from scripts/start_vllm.sh with the tuned flags."
+  ]
+}

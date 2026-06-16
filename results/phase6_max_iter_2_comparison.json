@@ -1,0 +1,86 @@
+{
+  "phase": "phase6",
+  "files": {
+    "baseline_load": "results/load_test.json",
+    "tuned_vllm_load": "results/load_test_after_tuned_seq16.json",
+    "max_iter_2_load": "results/load_test_after_max_iter_2.json",
+    "eval_after_tuning": "results/eval_after_tuning.json"
+  },
+  "baseline": {
+    "requested_rps": 5.0,
+    "duration_seconds": 300,
+    "wall_clock_seconds": 360.00225391300046,
+    "total_requests": 1500,
+    "achieved_rps": 4.1666405798739685,
+    "ok": 250,
+    "timeouts": 949,
+    "http_errors": 1,
+    "client_errors": 300,
+    "latency_p50": 14.375975283001026,
+    "latency_p95": 102.31600870699913,
+    "latency_p99": 114.0886201329995,
+    "latency_max": 118.58108502400137
+  },
+  "tuned_vllm_seq16": {
+    "requested_rps": 5.0,
+    "duration_seconds": 300,
+    "wall_clock_seconds": 323.8360471320011,
+    "total_requests": 1500,
+    "achieved_rps": 4.631973535017163,
+    "ok": 317,
+    "timeouts": 2,
+    "http_errors": 1174,
+    "client_errors": 7,
+    "latency_p50": 1.2283672529993055,
+    "latency_p95": 8.144420665001235,
+    "latency_p99": 13.447088752996933,
+    "latency_max": 28.984161913002026
+  },
+  "tuned_vllm_seq16_max_iter_2": {
+    "requested_rps": 5.0,
+    "duration_seconds": 300,
+    "wall_clock_seconds": 323.62704324399965,
+    "total_requests": 1500,
+    "achieved_rps": 4.634964942868109,
+    "ok": 315,
+    "timeouts": 2,
+    "http_errors": 1159,
+    "client_errors": 24,
+    "latency_p50": 1.0572448200000508,
+    "latency_p95": 6.973335945996951,
+    "latency_p99": 8.84083197700238,
+    "latency_max": 21.349859900998126
+  },
+  "eval_after_tuning": {
+    "total": 30,
+    "final_correct": 2,
+    "final_incorrect": 28,
+    "final_accuracy": 0.06666666666666667,
+    "gold_execution_errors": 0,
+    "agent_http_errors": 25,
+    "agent_reported_errors": 0,
+    "agent_success_count": 5,
+    "agent_success_rate": 0.16666666666666666,
+    "final_execution_success_count": 5,
+    "final_execution_success_rate": 0.16666666666666666,
+    "average_iterations": 0.23333333333333334,
+    "revision_count": 2,
+    "revision_rate": 0.06666666666666667,
+    "max_iteration": 2,
+    "per_iteration": [
+      {
+        "iteration": 1,
+        "correct": 2,
+        "total": 5,
+        "accuracy": 0.4
+      },
+      {
+        "iteration": 2,
+        "correct": 2,
+        "total": 5,
+        "accuracy": 0.4
+      }
+    ]
+  },
+  "verdict": "MAX_ITERATIONS=2 further improved successful-request latency, but final config is not viable with max_model_len=4096 because context-limit HTTP failures dominate load and eval quality regressed."
+}

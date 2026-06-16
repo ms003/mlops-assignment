@@ -16,6 +16,7 @@ conditional router following the same shape.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 from dataclasses import dataclass, field
@@ -30,7 +31,7 @@ from agent.schema import render_schema
 
 # Total generate + revise calls before the loop is forced to stop.
 # 3-5 is a reasonable range; tune it as part of Phase 3.
-MAX_ITERATIONS = 3
+MAX_ITERATIONS = 2
 
 VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "http://localhost:8000/v1")
 VLLM_MODEL = os.environ.get("VLLM_MODEL", "Qwen/Qwen3-30B-A3B-Instruct-2507")
@@ -72,13 +73,39 @@ def _attach_schema(state: AgentState) -> dict:
 
 
 def _extract_sql(text: str) -> str:
-    """Pull a SQL statement out of an LLM reply, stripping markdown fences/prose.
-
-    Intentionally simple: take the first ```sql ... ``` block if there is one,
-    otherwise the whole reply. You may need to harden this for your prompts.
-    """
+    """Pull a read-only SQL statement out of an LLM reply."""
     fenced = re.search(r"```(?:sql)?\s*(.*?)```", text, re.DOTALL | re.IGNORECASE)
-    return (fenced.group(1) if fenced else text).strip()
+    candidate = (fenced.group(1) if fenced else text).strip()
+    candidate = re.sub(r"<think>.*?</think>", "", candidate, flags=re.DOTALL | re.IGNORECASE).strip()
+    match = re.search(r"\b(?:WITH|SELECT)\b.*", candidate, re.DOTALL | re.IGNORECASE)
+    if match is not None:
+        candidate = match.group(0).strip()
+    statements = [part.strip() for part in candidate.split(";") if part.strip()]
+    if statements:
+        candidate = statements[0] + ";"
+    return candidate
+
+
+def _extract_json_object(text: str) -> dict[str, Any]:
+    """Parse the first JSON object from an LLM reply."""
+    fenced = re.search(r"```(?:json)?\s*(.*?)```", text, re.DOTALL | re.IGNORECASE)
+    candidate = (fenced.group(1) if fenced else text).strip()
+    candidate = re.sub(
+        r"<think>.*?</think>",
+        "",
+        candidate,
+        flags=re.DOTALL | re.IGNORECASE,
+    ).strip()
+    try:
+        parsed = json.loads(candidate)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*?\}", candidate, re.DOTALL)
+        if match is None:
+            raise
+        parsed = json.loads(match.group(0))
+    if not isinstance(parsed, dict):
+        raise ValueError("Verifier response was not a JSON object")
+    return parsed
 
 
 def generate_sql_node(state: AgentState) -> dict:
@@ -124,7 +151,51 @@ def verify_node(state: AgentState) -> dict:
     What counts as "not plausible" is yours to define - see the Phase 3 targets
     in the README.
     """
-    raise NotImplementedError("Implement in Phase 3")
+    # Step 1: turn the SQL execution output into short text for the LLM.
+    # If SQL failed, this text contains the error. If it worked, it contains
+    # columns, row count, and a small preview of rows.
+    execution_result = (
+        state.execution.render()
+        if state.execution is not None
+        else "ERROR: no execution result available"
+    )
+
+    # Step 2: ask the verifier LLM whether the SQL result answers the question.
+    # The expected reply is JSON, for example: {"ok": false, "issue": "..."}.
+    response = llm().invoke([
+        ("system", prompts.VERIFY_SYSTEM),
+        ("user", prompts.VERIFY_USER.format(
+            question=state.question,
+            schema=state.schema,
+            sql=state.sql,
+            execution_result=execution_result,
+        )),
+    ])
+
+    # Step 3: parse the LLM's JSON. If parsing fails, we mark verification as
+    # failed so the graph can try a revision instead of trusting bad output.
+    try:
+        parsed = _extract_json_object(response.content)
+        verify_ok = bool(parsed.get("ok", False))
+        verify_issue = str(parsed.get("issue", "")).strip()
+    except (json.JSONDecodeError, ValueError, TypeError) as e:
+        verify_ok = False
+        verify_issue = f"Verifier returned invalid JSON: {type(e).__name__}: {e}"
+
+    if not verify_ok and not verify_issue:
+        verify_issue = "Verifier rejected the SQL without an issue."
+
+    # Step 4: return only the state fields this node changed. LangGraph merges
+    # these values back into AgentState before the router decides the next step.
+    return {
+        "verify_ok": verify_ok,
+        "verify_issue": verify_issue,
+        "history": state.history + [{
+            "node": "verify",
+            "ok": verify_ok,
+            "issue": verify_issue,
+        }],
+    }
 
 
 def revise_node(state: AgentState) -> dict:
@@ -137,7 +208,40 @@ def revise_node(state: AgentState) -> dict:
 
     Return: {"sql": <str>, "iteration": state.iteration + 1, ...}.
     """
-    raise NotImplementedError("Implement in Phase 3")
+    # Step 1: prepare the previous execution result so the LLM can see what
+    # went wrong: SQL error, empty rows, wrong columns, or implausible rows.
+    execution_result = (
+        state.execution.render()
+        if state.execution is not None
+        else "ERROR: no execution result available"
+    )
+
+    # Step 2: ask the LLM to repair the previous SQL using the verifier issue.
+    # The LLM gets the original question, schema, old SQL, execution result,
+    # and a short explanation of the problem.
+    response = llm().invoke([
+        ("system", prompts.REVISE_SYSTEM),
+        ("user", prompts.REVISE_USER.format(
+            question=state.question,
+            schema=state.schema,
+            sql=state.sql,
+            execution_result=execution_result,
+            verify_issue=state.verify_issue,
+        )),
+    ])
+
+    # Step 3: extract the corrected SQL and save it as the new current SQL.
+    # The graph will execute this revised SQL in the next node.
+    sql = _extract_sql(response.content)
+    return {
+        "sql": sql,
+        "iteration": state.iteration + 1,
+        "history": state.history + [{
+            "node": "revise",
+            "sql": sql,
+            "issue": state.verify_issue,
+        }],
+    }
 
 
 def route_after_verify(state: AgentState) -> str:
@@ -146,7 +250,17 @@ def route_after_verify(state: AgentState) -> str:
     Two reasons to end: the verifier was happy (state.verify_ok), or you've hit
     the iteration cap (state.iteration >= MAX_ITERATIONS). Otherwise, revise.
     """
-    raise NotImplementedError("Implement in Phase 3")
+    # If the answer looks good, stop and return it to the caller.
+    if state.verify_ok:
+        return "end"
+
+    # If we already used all allowed generate/revise attempts, stop even though
+    # the answer is not perfect. This prevents infinite loops.
+    if state.iteration >= MAX_ITERATIONS:
+        return "end"
+
+    # Otherwise, send the graph to revise_node so the LLM can fix the SQL.
+    return "revise"
 
 
 # ---- Graph wiring -----------------------------------------------------
